@@ -1,0 +1,38 @@
+name: Numeric precision remaining Linux validation
+on:
+  push:
+    branches:
+      - validation/numeric-precision-remaining
+permissions:
+  contents: read
+jobs:
+  remaining:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fa808bb8ed6f64257d654d8785c1ce24351201a4
+          persist-credentials: false
+      - name: Verify reviewed source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "fa808bb8ed6f64257d654d8785c1ce24351201a4"
+          test "$(git rev-parse 'HEAD^{tree}')" = "7e8396acd111a13da30f66bc78d4fe02264d0307"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11.17'
+          cache: pip
+          cache-dependency-path: requirements.lock.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install locked Python dependencies
+        run: python -m pip install -r requirements.lock.txt && python -m pip install --no-deps -e .
+      - run: npm --prefix apps/web ci
+      - run: npm --prefix apps/web run build
+      - run: npm --prefix apps/web test
+      - run: python scripts/package_source.py --output "$RUNNER_TEMP/forest-source.zip"
